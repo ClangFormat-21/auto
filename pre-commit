@@ -1,40 +1,32 @@
-# Точный путь к вашему файлу стилей
+# Точный путь к файлу стилей относительно корня репозитория
 CONFIG_PATH="materials/linters/.clang-format"
 
-# Находим измененные C/C++ файлы перед коммитом
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(cpp|hpp|c|h)$')
+echo "🚀 [Pre-Commit] Запуск принудительного форматирования ВСЕХ файлов проекта..."
 
-# Если измененных C/C++ файлов нет — пропускаем проверку
-if [ -z "$FILES" ]; then
-    exit 0
-fi
+# Флаг для проверки, нашли ли мы хоть один файл
+FOUND_FILES=false
 
-AUTO_FIXED=false
-
-# Проверяем каждый измененный файл
-for FILE in $FILES; do
-    if [ -f "$FILE" ]; then
-        # Проверяем стиль с помощью флага -n (dry-run)
-        clang-format -n --Werror -style=file:"$CONFIG_PATH" "$FILE" 2>/dev/null
-        
-        # Если код возврата не 0 (есть ошибки форматирования)
-        if [ $? -ne 0 ]; then
-            echo "🔧 Найдено неверное форматирование в: $FILE. Исправляю..."
-            
-            # Запускаем автоматическое исправление прямо в файл через флаг -i
-            clang-format -i -style=file:"$CONFIG_PATH" "$FILE"
-            
-            # Заново добавляем исправленный файл в индекс для коммита
-            git add "$FILE"
-            AUTO_FIXED=true
-        fi
-    fi
+# Находим ВСЕ C/C++ файлы в репозитории.
+# Исключаем папку .git и build, чтобы скрипт не испортил системные файлы.
+# Конструкция с -print0 и read -d '' гарантирует 100% защиту от пробелов в путях.
+find . \( -name ".git" -o -name "build" \) -prune -o \
+-type f -regextype posix-extended -regex '.*\.(cpp|hpp|c|h)$' -print0 | while IFS= read -r -d '' FILE; do
+    
+    echo "🔧 Форматирую: $FILE"
+    
+    # Форматируем файл
+    clang-format -i -style=file:"$CONFIG_PATH" "$FILE"
+    
+    # Принудительно добавляем в текущий коммит
+    git add "$FILE" 2>/dev/null
+    
+    FOUND_FILES=true
 done
 
-if [ "$AUTO_FIXED" = true ]; then
-    echo "✅ Все файлы автоматически отформатированы и добавлены в коммит!"
-else
-    echo "✅ Все файлы изначально соответствовали стилю!"
+# Если файлов в проекте вообще нет
+if [ "$FOUND_FILES" = false ]; then
+    echo "⚠️ Файлы C/C++ в проекте не найдены."
 fi
 
+echo "✅ [Pre-Commit] Все файлы проекта успешно отформатированы и добавлены в коммит!"
 exit 0
