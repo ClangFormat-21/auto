@@ -1,40 +1,22 @@
-# Точный путь к вашему файлу стилей
+# Точный путь к файлу стилей относительно корня репозитория
 CONFIG_PATH="materials/linters/.clang-format"
+TARGET_DIR="src"
 
-# Находим измененные C/C++ файлы перед коммитом
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(cpp|hpp|c|h)$')
+echo "🚀 [Pre-Commit] Запуск форматирования всех файлов .c в папке $TARGET_DIR..."
 
-# Если измененных C/C++ файлов нет — пропускаем проверку
-if [ -z "$FILES" ]; then
+# Проверяем, существует ли папка src
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "⚠️ Папка $TARGET_DIR не найдена. Пропускаем."
     exit 0
 fi
 
-AUTO_FIXED=false
+# Находим все файлы .c в папке src (и её подпапках) и форматируем их за один запуск.
+# Конструкция + в конце xargs или find заменяет долгий цикл и работает мгновенно.
+find "$TARGET_DIR" -type f -name "*.c" -exec clang-format -i -style=file:"$CONFIG_PATH" {} +
 
-# Проверяем каждый измененный файл
-for FILE in $FILES; do
-    if [ -f "$FILE" ]; then
-        # Проверяем стиль с помощью флага -n (dry-run)
-        clang-format -n --Werror -style=file:"$CONFIG_PATH" "$FILE" 2>/dev/null
-        
-        # Если код возврата не 0 (есть ошибки форматирования)
-        if [ $? -ne 0 ]; then
-            echo "🔧 Найдено неверное форматирование в: $FILE. Исправляю..."
-            
-            # Запускаем автоматическое исправление прямо в файл через флаг -i
-            clang-format -i -style=file:"$CONFIG_PATH" "$FILE"
-            
-            # Заново добавляем исправленный файл в индекс для коммита
-            git add "$FILE"
-            AUTO_FIXED=true
-        fi
-    fi
-done
+# Добавляем все измененные .c файлы обратно в индекс коммита
+# (Используем find, чтобы git add добавил именно те файлы, которые мы только что отформатировали)
+find "$TARGET_DIR" -type f -name "*.c" -exec git add {} +
 
-if [ "$AUTO_FIXED" = true ]; then
-    echo "✅ Все файлы автоматически отформатированы и добавлены в коммит!"
-else
-    echo "✅ Все файлы изначально соответствовали стилю!"
-fi
-
+echo "✅ Все файлы .c в папке $TARGET_DIR успешно отформатированы и добавлены в коммит!"
 exit 0
