@@ -2,7 +2,7 @@
 CONFIG_PATH="materials/linters/.clang-format"
 TARGET_DIR="src"
 
-echo "🚀 [Pre-Commit] Запуск форматирования всех файлов .c в папке $TARGET_DIR..."
+echo "🚀 [Pre-Commit] Запуск форматирования всех файлов .c и .h в папке $TARGET_DIR..."
 
 # Проверяем, существует ли папка src
 if [ ! -d "$TARGET_DIR" ]; then
@@ -10,13 +10,12 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 0
 fi
 
-# Находим все файлы .c в папке src (и её подпапках) и форматируем их за один запуск.
-# Конструкция + в конце xargs или find заменяет долгий цикл и работает мгновенно.
-find "$TARGET_DIR" -type f -name "*.c" -exec clang-format -i -style=file:"$CONFIG_PATH" {} +
+# Находим все файлы .c и .h в папке src (и её подпапках) и форматируем их за один запуск.
+# Круглые скобки \( ... \) группируют условия, а -o означает "ИЛИ".
+find "$TARGET_DIR" -type f \( -name "*.c" -o -name "*.h" \) -exec clang-format -i -style=file:"$CONFIG_PATH" {} +
 
-# Добавляем все измененные .c файлы обратно в индекс коммита
-# (Используем find, чтобы git add добавил именно те файлы, которые мы только что отформатировали)
-find "$TARGET_DIR" -type f -name "*.c" -exec git add {} +
+# Добавляем все измененные .c и .h файлы обратно в индекс коммита
+find "$TARGET_DIR" -type f \( -name "*.c" -o -name "*.h" \) -exec git add {} +
 
-echo "✅ Все файлы .c в папке $TARGET_DIR успешно отформатированы и добавлены в коммит!"
+echo "✅ Все файлы .c и .h в папке $TARGET_DIR успешно отформатированы и добавлены в коммит!"
 exit 0
